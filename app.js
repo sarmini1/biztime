@@ -7,6 +7,9 @@ const app = express();
 
 app.use(express.json());
 
+const companiesRoutes = require("./routes/companies");
+app.use("/companies", companiesRoutes);
+
 
 /** 404 handler: matches unmatched routes; raises NotFoundError. */
 app.use(function (req, res, next) {
