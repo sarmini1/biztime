@@ -4,7 +4,7 @@ const express = require("express");
 const db = require("../db");
 const { NotFoundError } = require("../expressError");
 const router = express.Router();
-
+const HTTP_CREATED = 201;
 /** GET /invoices
 Returns list of invoices, like {invoices: [{id, comp_code}, ...]}
  */
@@ -28,34 +28,31 @@ Returns {invoice: {id, amt, paid, add_date, paid_date,
 */
 router.get("/:id",
   async function (req, res, next) {
+
+    if ("id" in req.body) {
+      throw new BadRequestError("Not allowed");
+    }
+
     const id = req.params.id;
 
     const invoiceResults = await db.query(
-      `SELECT id, amt, paid, add_date, paid_date
+      `SELECT id, amt, paid, add_date, paid_date, comp_code
                FROM invoices
                WHERE id = $1`, [id]);
     const invoice = invoiceResults.rows[0];
-
+    const compCode = invoice.comp_code;
+    console.log(invoice)
     if (invoice === undefined) {
       throw new NotFoundError("Invoice not found");
     }
 
-    //console.log("desiredInvoice is", desiredInvoice);
-    const compCodeResult = await db.query(
-      `SELECT comp_code
-              FROM invoices
-              WHERE id = $1`, [id]);
-    const desiredCompCode = compCodeResult.rows[0].comp_code;
-    //console.log("desiredCompCode is", desiredCompCode);
-
     const invoiceCompanyResults = await db.query(
       `SELECT code, name, description
              FROM companies
-             WHERE code = $1`, [desiredCompCode]);
+             WHERE code = $1`, [compCode]);
+             
+    delete invoice.comp_code;
     const invoiceCompany = invoiceCompanyResults.rows[0];
-    //console.log("desiredCompCode is", desiredCompCode);
-    //console.log("invoiceCompanyResults are", invoiceCompanyResults);
-
     invoice.company = invoiceCompany;
 
     return res.json({ invoice });
@@ -88,7 +85,7 @@ router.post("/", async function (req, res, next) {
                     paid_date`, [comp_code, amt]);
   const invoice = results.rows[0];
 
-  return res.status(201).json({ invoice });
+  return res.status(HTTP_CREATED).json({ invoice });  
 });
 
 /**
@@ -103,9 +100,11 @@ Returns: {invoice: {id, comp_code, amt, paid, add_date, paid_date}}
  */
 
 router.put("/:id", async function (req, res, next) {
-  if ("id" in req.body) throw new BadRequestError("Not allowed");
+  if ("id" in req.body) {
+    throw new BadRequestError("Not allowed");
+  }
 
-  const id = req.params.id;
+  const {id } = req.params;
   const { amt } = req.body;
   const results = await db.query(
     `UPDATE invoices
@@ -126,6 +125,32 @@ router.put("/:id", async function (req, res, next) {
 
   return res.json({ invoice });
 });
+
+
+/**
+DELETE /invoices/[id]
+Deletes an invoice.
+
+If invoice cannot be found, returns a 404.
+
+Returns: {status: "deleted"} */
+router.delete("/:id", async function (req, res, next) {
+
+  const id = req.params.id;
+  const results = await db.query(
+    `DELETE FROM invoices 
+    WHERE id = $1 
+    RETURNING id`
+    , [id]);
+  const invoice = results.rows[0];
+
+  if (invoice === undefined) {
+    throw new NotFoundError(`No matching invoice: ${id}`);
+  }
+
+  return res.json({ status: "deleted" });
+});
+
 
 
 module.exports = router;

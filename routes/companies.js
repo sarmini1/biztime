@@ -4,7 +4,7 @@ const express = require("express");
 const db = require("../db");
 const { NotFoundError } = require("../expressError");
 const router = express.Router();
-
+const HTTP_CREATED = 201;
 /** GET /companies
 Returns list of companies, like {companies: [{code, name}, ...]}
  */
@@ -19,25 +19,35 @@ router.get("/", async function (req, res, next) {
   return res.json({ companies });
 });
 
-/** GET /companies/code
-/** Return obj of company: {company: {code, name, description}}  
+/** GET /companies/[code].
+Return obj of company: {company: {code, name, description, invoices: [id, ...]}}
 
-If the company given cannot be found, this should return a 404 status response. */
+If the company given cannot be found, this should return a 404 status response */
 
 router.get("/:code",
   async function (req, res, next) {
     const code = req.params.code;
 
-    const results = await db.query(
+    const compResults = await db.query(
       `SELECT code, name, description
                FROM companies
                WHERE code = $1`, [code]);
-    const company = results.rows[0];
+    const company = compResults.rows[0];
 
 
     if (company === undefined) {
       throw new NotFoundError("Company not found");
     }
+
+    const invResults = await db.query(
+      `SELECT id 
+              FROM invoices
+              WHERE comp_code=$1
+              ORDER BY id`, [code]);
+
+    const invoices = invResults.rows;
+    const invIds = invoices.map(inv => inv.id);
+    company.invoices = invIds;
 
     return res.json({ company });
   });
@@ -59,7 +69,7 @@ router.post("/", async function (req, res, next) {
     [code, name, description]);
   const company = results.rows[0];
 
-  return res.status(201).json({ company });
+  return res.status(HTTP_CREATED).json({ company });
 });
 
 
