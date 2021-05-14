@@ -12,5 +12,8 @@
   "dependencies": {
     "express": "^5.0.0-alpha.8",
     "pg": "^8.6.0"
+  },
+  "devDependencies": {
+    "supertest": "^6.1.3"
   }
 }
