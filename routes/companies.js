@@ -122,7 +122,7 @@ router.delete("/:code", async function (req, res, next) {
     throw new NotFoundError(`No matching comapny: ${code}`);
   }
 
-  return res.json({ Status: "deleted" });
+  return res.json({ status: "deleted" });
 });
 
 module.exports = router;
